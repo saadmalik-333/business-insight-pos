@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { productService, categoryService, salesService } from "@/lib/database";
 import { 
   ShoppingCart, 
   Plus, 
@@ -18,34 +21,59 @@ interface Product {
   id: string;
   name: string;
   price: number;
-  category: string;
-  stock: number;
-  image?: string;
+  category_id: string;
+  stock_quantity: number;
+  cost: number;
+  sku: string;
+  categories?: {
+    name: string;
+  };
 }
 
 interface CartItem extends Product {
   quantity: number;
 }
 
-const mockProducts: Product[] = [
-  { id: "1", name: "Classic Burger", price: 12.99, category: "Burgers", stock: 15 },
-  { id: "2", name: "Crispy Fries", price: 4.99, category: "Sides", stock: 30 },
-  { id: "3", name: "Cola", price: 2.99, category: "Drinks", stock: 25 },
-  { id: "4", name: "Chicken Sandwich", price: 10.99, category: "Burgers", stock: 12 },
-  { id: "5", name: "Milkshake", price: 5.99, category: "Drinks", stock: 18 },
-  { id: "6", name: "Onion Rings", price: 3.99, category: "Sides", stock: 22 },
-];
-
-const categories = ["All", "Burgers", "Sides", "Drinks"];
-
 const POSInterface = () => {
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
 
-  const filteredProducts = mockProducts.filter(product => {
-    const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [productsData, categoriesData] = await Promise.all([
+          productService.getAll(),
+          categoryService.getAll()
+        ]);
+        setProducts(productsData);
+        setCategories([{ name: "All" }, ...categoriesData]);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load products. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [toast]);
+
+  const filteredProducts = products.filter(product => {
+    const categoryName = product.categories?.name || '';
+    const matchesCategory = selectedCategory === "All" || categoryName === selectedCategory;
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.sku.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -55,7 +83,7 @@ const POSInterface = () => {
       if (existingItem) {
         return prevCart.map(item =>
           item.id === product.id
-            ? { ...item, quantity: Math.min(item.quantity + 1, product.stock) }
+            ? { ...item, quantity: Math.min(item.quantity + 1, product.stock_quantity) }
             : item
         );
       }
@@ -78,11 +106,65 @@ const POSInterface = () => {
   const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((total, item) => total + item.quantity, 0);
 
-  const handleCheckout = () => {
-    // Checkout logic will be implemented with Supabase
-    console.log("Processing checkout...", cart);
-    setCart([]);
+  const handleCheckout = async (paymentMethod: 'cash' | 'card') => {
+    if (cart.length === 0 || !user || processing) return;
+
+    setProcessing(true);
+    try {
+      const saleNumber = await salesService.generateSaleNumber();
+      const subtotal = cartTotal;
+      const taxAmount = cartTotal * 0.08;
+      const totalAmount = subtotal + taxAmount;
+
+      const sale = {
+        sale_number: saleNumber,
+        customer_name: null,
+        subtotal,
+        tax_amount: taxAmount,
+        total_amount: totalAmount,
+        payment_method: paymentMethod,
+        cashier_id: user.id,
+      };
+
+      const saleItems = cart.map(item => ({
+        product_id: item.id,
+        quantity: item.quantity,
+        unit_price: item.price,
+        total_price: item.price * item.quantity,
+        sale_id: '', // Will be set by the service
+      }));
+
+      await salesService.create(sale, saleItems);
+
+      toast({
+        title: "Sale Completed!",
+        description: `Transaction ${saleNumber} processed successfully.`,
+      });
+
+      setCart([]);
+      
+      // Refresh products to update stock
+      const updatedProducts = await productService.getAll();
+      setProducts(updatedProducts);
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast({
+        title: "Checkout Failed",
+        description: "There was an error processing the sale. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
@@ -106,13 +188,13 @@ const POSInterface = () => {
           <div className="flex flex-wrap gap-2">
             {categories.map(category => (
               <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "outline"}
+                key={category.name}
+                variant={selectedCategory === category.name ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSelectedCategory(category)}
+                onClick={() => setSelectedCategory(category.name)}
                 className="transition-all duration-200"
               >
-                {category}
+                {category.name}
               </Button>
             ))}
           </div>
@@ -133,8 +215,8 @@ const POSInterface = () => {
                 <h3 className="font-semibold text-sm leading-tight">{product.name}</h3>
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-primary">${product.price}</span>
-                  <Badge variant={product.stock < 10 ? "destructive" : "secondary"} className="text-xs">
-                    {product.stock} left
+                  <Badge variant={product.stock_quantity < 10 ? "destructive" : "secondary"} className="text-xs">
+                    {product.stock_quantity} left
                   </Badge>
                 </div>
               </div>
@@ -191,7 +273,7 @@ const POSInterface = () => {
                       size="sm"
                       variant="outline"
                       onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      disabled={item.quantity >= item.stock}
+                      disabled={item.quantity >= item.stock_quantity}
                       className="w-8 h-8 p-0"
                     >
                       <Plus className="w-3 h-3" />
@@ -223,13 +305,22 @@ const POSInterface = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline" className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  className="flex items-center gap-2"
+                  onClick={() => handleCheckout('cash')}
+                  disabled={processing}
+                >
                   <DollarSign className="w-4 h-4" />
-                  Cash
+                  {processing ? "Processing..." : "Cash"}
                 </Button>
-                <Button onClick={handleCheckout} className="flex items-center gap-2">
+                <Button 
+                  onClick={() => handleCheckout('card')} 
+                  className="flex items-center gap-2"
+                  disabled={processing}
+                >
                   <CreditCard className="w-4 h-4" />
-                  Card
+                  {processing ? "Processing..." : "Card"}
                 </Button>
               </div>
             </div>

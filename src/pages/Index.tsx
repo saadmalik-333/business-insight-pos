@@ -1,21 +1,53 @@
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import Navigation from "@/components/Navigation";
 import Dashboard from "@/components/Dashboard";
 import POSInterface from "@/components/POSInterface";
 import InventoryManager from "@/components/InventoryManager";
 import HeroSection from "@/components/HeroSection";
 import BackendRequiredNotice from "@/components/BackendRequiredNotice";
+import AuthModal from "@/components/AuthModal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, LogOut } from "lucide-react";
 
 const Index = () => {
+  const { user, profile, loading, signOut } = useAuth();
   const [showApp, setShowApp] = useState(false);
   const [currentView, setCurrentView] = useState("dashboard");
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthModal />;
+  }
 
   if (!showApp) {
     return (
       <div className="min-h-screen bg-background">
+        <div className="absolute top-4 right-4 z-50">
+          <div className="flex items-center gap-4">
+            <div className="text-sm">
+              Welcome, <span className="font-semibold">{profile?.full_name || user.email}</span>
+              <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs">
+                {profile?.role || 'user'}
+              </span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={signOut}>
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+        
         <HeroSection />
         
         {/* Call to Action */}
@@ -23,7 +55,7 @@ const Index = () => {
           <div className="container mx-auto max-w-4xl text-center space-y-8">
             <h2 className="text-3xl font-bold">Ready to Transform Your Business?</h2>
             <p className="text-xl text-muted-foreground">
-              Experience the future of retail management with our demo interface
+              Access your personalized POS dashboard with real-time data
             </p>
             <Button 
               size="lg" 
@@ -34,13 +66,6 @@ const Index = () => {
               Enter POS System
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
-          </div>
-        </div>
-
-        {/* Backend Notice */}
-        <div className="py-20 px-6 bg-muted/20">
-          <div className="container mx-auto max-w-4xl">
-            <BackendRequiredNotice />
           </div>
         </div>
       </div>

@@ -1,5 +1,8 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { analyticsService } from "@/lib/database";
 import { 
   ShoppingCart, 
   Package, 
@@ -44,6 +47,35 @@ const MetricCard = ({ title, value, trend, icon, color = "primary" }: MetricCard
 };
 
 const Dashboard = () => {
+  const { profile } = useAuth();
+  const [metrics, setMetrics] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const data = await analyticsService.getDashboardMetrics();
+        setMetrics(data);
+      } catch (error) {
+        console.error('Error fetching metrics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMetrics();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -53,7 +85,7 @@ const Dashboard = () => {
             POS Dashboard
           </h1>
           <p className="text-muted-foreground mt-1">
-            Welcome back! Here's your business overview.
+            Welcome back, {profile?.full_name || 'User'}! Here's your business overview.
           </p>
         </div>
         <div className="flex gap-3">
@@ -72,30 +104,30 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           title="Today's Sales"
-          value="$1,247"
-          trend="+12.5% from yesterday"
+          value={`$${metrics?.todaySales?.total?.toFixed(2) || '0.00'}`}
+          trend={`${metrics?.todaySales?.count || 0} transactions today`}
           icon={<DollarSign className="w-6 h-6" />}
           color="success"
         />
         <MetricCard
           title="Total Transactions"
-          value="24"
-          trend="+8 from yesterday"
+          value={`${metrics?.todaySales?.count || 0}`}
+          trend="Today's transaction count"
           icon={<ShoppingCart className="w-6 h-6" />}
           color="primary"
         />
         <MetricCard
           title="Low Stock Items"
-          value="3"
-          trend="Requires attention"
+          value={`${metrics?.lowStockCount || 0}`}
+          trend={metrics?.lowStockCount > 0 ? "Requires attention" : "All items in stock"}
           icon={<AlertTriangle className="w-6 h-6" />}
-          color="warning"
+          color={metrics?.lowStockCount > 0 ? "warning" : "success"}
         />
         <MetricCard
-          title="Revenue Growth"
-          value="+23%"
-          trend="This month vs last"
-          icon={<TrendingUp className="w-6 h-6" />}
+          title="Total Products"
+          value={`${metrics?.totalProducts || 0}`}
+          trend="Active products in inventory"
+          icon={<Package className="w-6 h-6" />}
           color="accent"
         />
       </div>
@@ -152,24 +184,30 @@ const Dashboard = () => {
       <Card className="p-6">
         <h3 className="font-semibold text-lg mb-4">Recent Transactions</h3>
         <div className="space-y-4">
-          {[
-            { id: "#001", customer: "Walk-in Customer", total: "$45.99", time: "2 minutes ago" },
-            { id: "#002", customer: "John Doe", total: "$127.50", time: "15 minutes ago" },
-            { id: "#003", customer: "Walk-in Customer", total: "$23.75", time: "32 minutes ago" },
-          ].map((transaction) => (
-            <div key={transaction.id} className="flex items-center justify-between py-3 border-b border-border/50 last:border-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                  <ShoppingCart className="w-5 h-5 text-primary" />
+          {metrics?.recentSales?.length > 0 ? (
+            metrics.recentSales.map((transaction: any, index: number) => (
+              <div key={transaction.id} className="flex items-center justify-between py-3 border-b border-border/50 last:border-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                    <ShoppingCart className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{transaction.sale_number} - {transaction.customer_name || 'Walk-in Customer'}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(transaction.created_at).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium">{transaction.id} - {transaction.customer}</p>
-                  <p className="text-sm text-muted-foreground">{transaction.time}</p>
-                </div>
+                <p className="font-semibold text-lg">${Number(transaction.total_amount).toFixed(2)}</p>
               </div>
-              <p className="font-semibold text-lg">{transaction.total}</p>
+            ))
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <ShoppingCart className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No recent transactions</p>
+              <p className="text-sm">Start making sales to see them here</p>
             </div>
-          ))}
+          )}
         </div>
       </Card>
     </div>
