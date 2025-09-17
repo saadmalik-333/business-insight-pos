@@ -72,11 +72,11 @@ export const productService = {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .lte('stock_quantity', 'min_stock_level')
       .eq('is_active', true)
     
     if (error) throw error
-    return data || []
+    const items = data || []
+    return items.filter(p => Number(p.stock_quantity) <= Number(p.min_stock_level))
   }
 }
 

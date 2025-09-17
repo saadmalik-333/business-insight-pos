@@ -46,7 +46,8 @@ const MetricCard = ({ title, value, trend, icon, color = "primary" }: MetricCard
   );
 };
 
-const Dashboard = () => {
+interface DashboardProps { onNavigate?: (view: string) => void }
+const Dashboard = ({ onNavigate }: DashboardProps) => {
   const { profile } = useAuth();
   const [metrics, setMetrics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -93,7 +94,7 @@ const Dashboard = () => {
             <Calendar className="w-4 h-4 mr-2" />
             Today
           </Button>
-          <Button>
+          <Button onClick={() => onNavigate?.('reports')}>
             <BarChart3 className="w-4 h-4 mr-2" />
             View Reports
           </Button>
@@ -143,7 +144,7 @@ const Dashboard = () => {
               <h3 className="font-semibold text-lg">Start Sale</h3>
               <p className="text-muted-foreground text-sm">Begin a new transaction</p>
             </div>
-            <Button className="w-full">
+            <Button className="w-full" onClick={() => onNavigate?.('pos')}>
               Open POS
             </Button>
           </div>
@@ -158,7 +159,7 @@ const Dashboard = () => {
               <h3 className="font-semibold text-lg">Manage Inventory</h3>
               <p className="text-muted-foreground text-sm">Add or update products</p>
             </div>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" onClick={() => onNavigate?.('inventory')}>
               Open Inventory
             </Button>
           </div>
@@ -173,7 +174,7 @@ const Dashboard = () => {
               <h3 className="font-semibold text-lg">View Reports</h3>
               <p className="text-muted-foreground text-sm">Analyze your sales data</p>
             </div>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" onClick={() => onNavigate?.('reports')}>
               View Analytics
             </Button>
           </div>

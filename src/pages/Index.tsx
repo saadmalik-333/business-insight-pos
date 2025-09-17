@@ -7,6 +7,7 @@ import InventoryManager from "@/components/InventoryManager";
 import HeroSection from "@/components/HeroSection";
 import BackendRequiredNotice from "@/components/BackendRequiredNotice";
 import AuthModal from "@/components/AuthModal";
+import AIAssistant from "@/components/AIAssistant";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, LogOut } from "lucide-react";
@@ -15,6 +16,7 @@ const Index = () => {
   const { user, profile, loading, signOut } = useAuth();
   const [showApp, setShowApp] = useState(false);
   const [currentView, setCurrentView] = useState("dashboard");
+  const [aiOpen, setAiOpen] = useState(false);
 
   if (loading) {
     return (
@@ -75,7 +77,7 @@ const Index = () => {
   const renderContent = () => {
     switch (currentView) {
       case "dashboard":
-        return <Dashboard />;
+        return <Dashboard onNavigate={setCurrentView} />;
       case "pos":
         return <POSInterface />;
       case "inventory":
@@ -112,19 +114,20 @@ const Index = () => {
           </Card>
         );
       default:
-        return <Dashboard />;
+        return <Dashboard onNavigate={setCurrentView} />;
     }
   };
 
   return (
     <div className="min-h-screen bg-background flex">
-      <Navigation currentView={currentView} onViewChange={setCurrentView} />
+      <Navigation currentView={currentView} onViewChange={setCurrentView} onOpenAI={() => setAiOpen(true)} />
       
       <div className="flex-1 lg:ml-0 ml-0">
         <main className="p-6 max-w-7xl mx-auto">
           {renderContent()}
         </main>
       </div>
+      <AIAssistant open={aiOpen} onOpenChange={setAiOpen} />
     </div>
   );
 };

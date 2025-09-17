@@ -14,9 +14,10 @@ import {
 interface NavigationProps {
   currentView: string;
   onViewChange: (view: string) => void;
+  onOpenAI?: () => void;
 }
 
-const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
+const Navigation = ({ currentView, onViewChange, onOpenAI }: NavigationProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const menuItems = [
@@ -66,7 +67,7 @@ const Navigation = ({ currentView, onViewChange }: NavigationProps) => {
             <p className="text-xs text-muted-foreground mt-1">
               Ask me about your sales data!
             </p>
-            <Button size="sm" variant="outline" className="w-full mt-3">
+            <Button size="sm" variant="outline" className="w-full mt-3" onClick={onOpenAI}>
               Chat with AI
             </Button>
           </div>
