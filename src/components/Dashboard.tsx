@@ -65,6 +65,17 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
     };
 
     fetchMetrics();
+
+    const refresh = () => {
+      setLoading(true);
+      fetchMetrics();
+    };
+    window.addEventListener('sales:updated', refresh);
+    window.addEventListener('products:updated', refresh);
+    return () => {
+      window.removeEventListener('sales:updated', refresh);
+      window.removeEventListener('products:updated', refresh);
+    };
   }, []);
 
   if (loading) {

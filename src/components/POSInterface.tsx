@@ -106,6 +106,50 @@ const POSInterface = () => {
   const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((total, item) => total + item.quantity, 0);
 
+  const printReceipt = (saleNumber: string, items: CartItem[], subtotal: number, taxAmount: number, totalAmount: number) => {
+    const receiptHtml = `
+      <html>
+        <head>
+          <title>Receipt ${saleNumber}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>
+            body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial; padding: 16px; }
+            h1 { font-size: 18px; margin: 0 0 8px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+            th, td { text-align: left; padding: 6px 0; border-bottom: 1px dotted #ccc; font-size: 12px; }
+            tfoot td { font-weight: 700; }
+          </style>
+        </head>
+        <body>
+          <h1>SmartPOS Pro</h1>
+          <div>Sale #: ${saleNumber}</div>
+          <div>Date: ${new Date().toLocaleString()}</div>
+          <table>
+            <thead>
+              <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+            </thead>
+            <tbody>
+              ${items.map(i => `<tr><td>${i.name}</td><td>${i.quantity}</td><td>$${i.price.toFixed(2)}</td><td>$${(i.price * i.quantity).toFixed(2)}</td></tr>`).join('')}
+            </tbody>
+            <tfoot>
+              <tr><td colspan="3">Subtotal</td><td>$${subtotal.toFixed(2)}</td></tr>
+              <tr><td colspan="3">Tax (8%)</td><td>$${taxAmount.toFixed(2)}</td></tr>
+              <tr><td colspan="3">Total</td><td>$${totalAmount.toFixed(2)}</td></tr>
+            </tfoot>
+          </table>
+          <p style="margin-top:12px; font-size:12px;">Thank you!</p>
+          <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 300); };</script>
+        </body>
+      </html>
+    `;
+    const w = window.open('', '_blank', 'width=400,height=600');
+    if (w) {
+      w.document.open();
+      w.document.write(receiptHtml);
+      w.document.close();
+    }
+  };
+
   const handleCheckout = async (paymentMethod: 'cash' | 'card') => {
     if (cart.length === 0 || !user || processing) return;
 
@@ -115,6 +159,7 @@ const POSInterface = () => {
       const subtotal = cartTotal;
       const taxAmount = cartTotal * 0.08;
       const totalAmount = subtotal + taxAmount;
+      const cartSnapshot = [...cart];
 
       const sale = {
         sale_number: saleNumber,
@@ -126,7 +171,7 @@ const POSInterface = () => {
         cashier_id: user.id,
       };
 
-      const saleItems = cart.map(item => ({
+      const saleItems = cartSnapshot.map(item => ({
         product_id: item.id,
         quantity: item.quantity,
         unit_price: item.price,
@@ -140,6 +185,12 @@ const POSInterface = () => {
         title: "Sale Completed!",
         description: `Transaction ${saleNumber} processed successfully.`,
       });
+
+      // Print receipt
+      printReceipt(saleNumber, cartSnapshot, subtotal, taxAmount, totalAmount);
+
+      // Notify other views (e.g., Dashboard) to refresh
+      window.dispatchEvent(new Event('sales:updated'));
 
       setCart([]);
       

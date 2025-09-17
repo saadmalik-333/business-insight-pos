@@ -1,19 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Package, 
-  Plus, 
-  Search, 
-  Edit3, 
-  Trash2, 
+import { useToast } from "@/hooks/use-toast";
+import { productService, categoryService } from "@/lib/database";
+import {
+  Package,
+  Plus,
+  Search,
+  Edit3,
+  Trash2,
   AlertTriangle,
-  TrendingDown,
-  TrendingUp,
   DollarSign
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Product {
   id: string;
@@ -36,9 +38,21 @@ const mockProducts: Product[] = [
 ];
 
 const InventoryManager = () => {
-  const [products, setProducts] = useState(mockProducts);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+const [products, setProducts] = useState<Product[]>([]);
+const [searchTerm, setSearchTerm] = useState("");
+const [selectedCategory, setSelectedCategory] = useState("All");
+const [allCategories, setAllCategories] = useState<{ id: string; name: string }[]>([]);
+const [addOpen, setAddOpen] = useState(false);
+const [saving, setSaving] = useState(false);
+const [newProduct, setNewProduct] = useState({
+  name: "",
+  sku: "",
+  category_id: "",
+  price: "",
+  cost: "",
+  stock_quantity: "",
+  min_stock_level: "",
+});
 
   const categories = ["All", ...Array.from(new Set(products.map(p => p.category)))];
 
