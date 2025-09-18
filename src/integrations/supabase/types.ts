@@ -14,7 +14,215 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          date: string
+          description: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string
+          date?: string
+          description: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          category_id: string | null
+          cost: number | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          price: number
+          sku: string | null
+          stock_quantity: number
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          cost?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          price: number
+          sku?: string | null
+          stock_quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          cost?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          price?: number
+          sku?: string | null
+          stock_quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          role: Database["public"]["Enums"]["user_role"] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sale_items: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          quantity: number
+          sale_id: string
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity: number
+          sale_id: string
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          sale_id?: string
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales: {
+        Row: {
+          cashier_id: string
+          created_at: string
+          customer_name: string | null
+          id: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          sale_number: string
+          subtotal: number
+          tax_amount: number
+          total_amount: number
+        }
+        Insert: {
+          cashier_id: string
+          created_at?: string
+          customer_name?: string | null
+          id?: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          sale_number: string
+          subtotal: number
+          tax_amount?: number
+          total_amount: number
+        }
+        Update: {
+          cashier_id?: string
+          created_at?: string
+          customer_name?: string | null
+          id?: string
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          sale_number?: string
+          subtotal?: number
+          tax_amount?: number
+          total_amount?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +231,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      payment_method: "cash" | "card"
+      user_role: "admin" | "cashier"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +359,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      payment_method: ["cash", "card"],
+      user_role: ["admin", "cashier"],
+    },
   },
 } as const
