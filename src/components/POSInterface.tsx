@@ -14,7 +14,8 @@ import {
   CreditCard, 
   DollarSign,
   Search,
-  Scan
+  Scan,
+  Printer
 } from "lucide-react";
 
 interface Product {

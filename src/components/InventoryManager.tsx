@@ -38,22 +38,57 @@ const mockProducts: Product[] = [
 ];
 
 const InventoryManager = () => {
-const [products, setProducts] = useState<Product[]>([]);
-const [searchTerm, setSearchTerm] = useState("");
-const [selectedCategory, setSelectedCategory] = useState("All");
-const [allCategories, setAllCategories] = useState<{ id: string; name: string }[]>([]);
-const [addOpen, setAddOpen] = useState(false);
-const [saving, setSaving] = useState(false);
-const [newProduct, setNewProduct] = useState({
-  name: "",
-  sku: "",
-  category_id: "",
-  price: "",
-  cost: "",
-  stock_quantity: "",
-  min_stock_level: "",
-});
+  const { toast } = useToast();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [allCategories, setAllCategories] = useState<{ id: string; name: string }[]>([]);
+  const [addOpen, setAddOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [newProduct, setNewProduct] = useState({
+    name: "",
+    sku: "",
+    category_id: "",
+    price: "",
+    cost: "",
+    stock_quantity: "",
+    min_stock_level: "",
+  });
 
+  // Load products and categories from Supabase
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [prods, cats] = await Promise.all([
+          productService.getAll(),
+          categoryService.getAll(),
+        ]);
+
+        setProducts(
+          prods.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            price: Number(p.price),
+            category: p.categories?.name ?? "",
+            stock: Number(p.stock_quantity),
+            minStock: Number(p.min_stock_level),
+            cost: Number(p.cost),
+            sku: p.sku,
+          }))
+        );
+        setAllCategories(cats.map((c: any) => ({ id: c.id, name: c.name })));
+      } catch (e: any) {
+        console.error("Failed to load inventory:", e);
+        toast({
+          title: "Failed to load inventory",
+          description: e?.message || "Please try again.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    load();
+  }, [toast]);
   const categories = ["All", ...Array.from(new Set(products.map(p => p.category)))];
 
   const filteredProducts = products.filter(product => {
@@ -73,6 +108,67 @@ const [newProduct, setNewProduct] = useState({
     return { status: "In Stock", variant: "secondary" as const, className: "bg-success/20 text-success border-success/30" };
   };
 
+  // Handlers
+  const resetNew = () => setNewProduct({
+    name: "",
+    sku: "",
+    category_id: "",
+    price: "",
+    cost: "",
+    stock_quantity: "",
+    min_stock_level: "",
+  });
+
+  const handleSaveProduct = async () => {
+    if (!newProduct.name || !newProduct.sku || !newProduct.category_id) {
+      toast({ title: "Missing fields", description: "Name, SKU and Category are required", variant: "destructive" });
+      return;
+    }
+
+    const payload = {
+      name: newProduct.name,
+      sku: newProduct.sku,
+      category_id: newProduct.category_id,
+      price: Number(newProduct.price || 0),
+      cost: Number(newProduct.cost || 0),
+      stock_quantity: Number(newProduct.stock_quantity || 0),
+      min_stock_level: Number(newProduct.min_stock_level || 0),
+      is_active: true,
+    } as any;
+
+    setSaving(true);
+    try {
+      await productService.create(payload);
+      toast({ title: "Product added" });
+      setAddOpen(false);
+      resetNew();
+      // Reload
+      const [prods, cats] = await Promise.all([
+        productService.getAll(),
+        categoryService.getAll(),
+      ]);
+      setProducts(
+        prods.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          price: Number(p.price),
+          category: p.categories?.name ?? "",
+          stock: Number(p.stock_quantity),
+          minStock: Number(p.min_stock_level),
+          cost: Number(p.cost),
+          sku: p.sku,
+        }))
+      );
+      setAllCategories(cats.map((c: any) => ({ id: c.id, name: c.name })));
+      window.dispatchEvent(new Event('products:updated'));
+    } catch (e: any) {
+      console.error('Create product error:', e);
+      toast({ title: "Failed to add product", description: e?.message || 'Please try again.', variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -85,7 +181,7 @@ const [newProduct, setNewProduct] = useState({
             Manage your products and stock levels
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setAddOpen(true)}>
           <Plus className="w-4 h-4" />
           Add Product
         </Button>
@@ -242,6 +338,66 @@ const [newProduct, setNewProduct] = useState({
           </div>
         </Card>
       )}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Product</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              placeholder="Name"
+              value={newProduct.name}
+              onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+            />
+            <Input
+              placeholder="SKU"
+              value={newProduct.sku}
+              onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
+            />
+            <Select
+              value={newProduct.category_id}
+              onValueChange={(v) => setNewProduct({ ...newProduct, category_id: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {allCategories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="number"
+              placeholder="Price"
+              value={newProduct.price}
+              onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+            />
+            <Input
+              type="number"
+              placeholder="Cost"
+              value={newProduct.cost}
+              onChange={(e) => setNewProduct({ ...newProduct, cost: e.target.value })}
+            />
+            <Input
+              type="number"
+              placeholder="Stock Qty"
+              value={newProduct.stock_quantity}
+              onChange={(e) => setNewProduct({ ...newProduct, stock_quantity: e.target.value })}
+            />
+            <Input
+              type="number"
+              placeholder="Min Stock Level"
+              value={newProduct.min_stock_level}
+              onChange={(e) => setNewProduct({ ...newProduct, min_stock_level: e.target.value })}
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveProduct} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
